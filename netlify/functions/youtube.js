@@ -15,8 +15,8 @@ exports.handler = async (event) => {
   }
 
   // ★★★ このURLを組み立てる行を修正します ★★★
-  const YOUTUBE_API_URL = `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=<span class="math-inline">\{videoId\}&order\=</span>{order}&maxResults=100&key=${API_KEY}`;
-
+  const YOUTUBE_API_URL = 'https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=' + videoId + '&order=' + order + '&maxResults=100&key=' + API_KEY;
+  
   try {
     const response = await fetch(YOUTUBE_API_URL);
     const data = await response.json();
