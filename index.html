@@ -275,30 +275,59 @@ const response = await fetch(apiUrl);
   }
 }
 
+// === コメント要素を作成するヘルパー関数を新設 ===
+function createCommentElement(comment) {
+  const element = document.createElement('div');
+  element.className = 'comment';
+  element.id = `comment-${comment.id}`;
+  // publishedAtがDateオブジェクトでない場合も考慮
+  const publishedDate = comment.publishedAt instanceof Date ? comment.publishedAt : new Date(comment.publishedAt);
+  
+  element.innerHTML = `
+    <div class="comment-icon">
+      <img src="${comment.authorProfileImageUrl}" alt="${comment.author}">
+    </div>
+    <div class="comment-body">
+      <div class="comment-author">
+        ${comment.author}
+        <span class="comment-meta">${publishedDate.toLocaleString('ja-JP')} 👍 ${comment.likeCount}</span>
+      </div>
+      <div class="comment-text">${comment.text}</div>
+    </div>
+  `;
+  // 返信コンテナ用の空のdivを末尾に追加（ここに返信が入る）
+  const repliesDiv = document.createElement('div');
+  element.querySelector('.comment-body').appendChild(repliesDiv);
+  return element;
+}
+  
+// === 修正後のrenderComments関数 ===
 function renderComments(commentsToRender) {
-  commentsContainer.innerHTML = ''; // 一旦コンテナを空にする
+  commentsContainer.innerHTML = ''; // コンテナを一旦空に
 
   commentsToRender.forEach(c => {
-    const commentDiv = document.createElement('div');
-    commentDiv.className = 'comment';
-    commentDiv.id = `comment-${c.id}`;
-    commentDiv.innerHTML = `
-      <div class="comment-icon">
-        <img src="${c.authorProfileImageUrl}" alt="${c.author}">
-      </div>
-      <div class="comment-body">
-        <div class="comment-author">
-          ${c.author}
-          <span class="comment-meta">${c.publishedAt} 👍 ${c.likeCount}</span>
-        </div>
-        <div class="comment-text">${c.text}</div>
-      </div>
-    `;
+    // 親コメントのHTML要素を作成
+    const commentDiv = createCommentElement(c);
+    
+    // 返信があれば、それらも追加
+    if (c.replies && c.replies.length > 0) {
+      const repliesContainer = document.createElement('div');
+      repliesContainer.style.marginLeft = '20px'; // 返信をインデント
+      repliesContainer.style.paddingLeft = '20px';
+      repliesContainer.style.borderLeft = '2px solid var(--border-color)';
+      
+      c.replies.forEach(reply => {
+        const replyDiv = createCommentElement(reply);
+        repliesContainer.appendChild(replyDiv);
+      });
+      
+      // comment-body の中の、返信コンテナ用divに repliesContainer を追加
+      commentDiv.querySelector('.comment-body > div:last-child').appendChild(repliesContainer);
+    }
+    
     commentsContainer.appendChild(commentDiv);
   });
-}
-
-  
+}  
 // コメント取得成功時の処理
 function onCommentsFetched(data) {
   if (typeof data !== 'object' || !data.comments) {
@@ -503,26 +532,40 @@ document.getElementById('translate-all-btn').addEventListener('click', () => {
 });
 */
 
-  document.getElementById('search-box').addEventListener('input', (event) => {
-  const searchTerm = event.target.value.toLowerCase(); // 入力値を小文字に
+// === 修正後の検索イベントリスナー ===
+document.getElementById('search-box').addEventListener('input', (event) => {
+  const searchTerm = event.target.value.toLowerCase();
 
   if (!searchTerm) {
-    // 検索ワードが空なら全件表示
     renderComments(fetchedComments);
     return;
   }
 
-  // 検索ワードに一致するコメントをフィルタリング
-  const filteredComments = fetchedComments.filter(comment => {
-    const authorMatch = comment.author.toLowerCase().includes(searchTerm);
-    const textMatch = comment.text.toLowerCase().includes(searchTerm);
-    return authorMatch || textMatch; // 投稿者名または本文に一致
-  });
+  const filteredComments = fetchedComments.map(comment => {
+    // 親コメントがマッチするかどうか
+    const parentAuthorMatch = comment.author.toLowerCase().includes(searchTerm);
+    const parentTextMatch = comment.text.toLowerCase().includes(searchTerm);
+    const isParentMatch = parentAuthorMatch || parentTextMatch;
+    
+    // 返信がマッチするかどうか
+    const matchedReplies = comment.replies.filter(reply => {
+      const replyAuthorMatch = reply.author.toLowerCase().includes(searchTerm);
+      const replyTextMatch = reply.text.toLowerCase().includes(searchTerm);
+      return replyAuthorMatch || replyTextMatch;
+    });
 
-  // フィルタリングされた結果を描画
+    // 親がマッチ、またはマッチした返信がある場合
+    if (isParentMatch || matchedReplies.length > 0) {
+      // 親がマッチした場合は全ての返信を、返信だけがマッチした場合はマッチした返信のみを表示
+      const repliesToShow = isParentMatch ? comment.replies : matchedReplies;
+      return { ...comment, replies: repliesToShow };
+    }
+    
+    return null;
+  }).filter(comment => comment !== null); // nullでないものだけ（マッチしたものだけ）を抽出
+
   renderComments(filteredComments);
-});
-  
+});  
 </script>
 </body>
 </html>
