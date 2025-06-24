@@ -197,6 +197,10 @@
 
   <div id="title-display-container" style="display: none; margin-bottom: 1rem;">
       <p style="font-weight: bold; color: var(--primary-color); margin: 0; padding: 0.8rem; background-color: var(--secondary-color); border-radius: 8px;" id="videoTitle"></p>
+    <div id="title-display-container" style="display: none; margin-bottom: 1rem;">
+    <p style="font-weight: bold; color: var(--primary-color); margin: 0; padding: 0.8rem; background-color: var(--secondary-color); border-radius: 8px;" id="videoTitle"></p>
+    <p style="font-size: 0.9em; color: var(--text-color); text-align: right; margin: 0.5rem 0.5rem 0 0;" id="comment-count-display"></p>
+</div>
   </div>
 </div>
     
@@ -306,26 +310,26 @@ function onCommentsFetched(data) {
     return;
   }
 
-  const comments = data.comments;
-  const videoTitle = data.videoTitle;
+  const { comments, videoTitle, totalCommentCount, fetchedCommentCount } = data;
 
   if (comments.length === 0) {
     showError("コメントが見つかりませんでした。");
     setLoading(false);
     return;
   }
-  
+
   document.getElementById('videoTitle').textContent = videoTitle;
+  // ★★★ コメント数を表示する処理を追加 ★★★
+  document.getElementById('comment-count-display').textContent = `取得件数: ${fetchedCommentCount} / 総件数: ${totalCommentCount}`;
+
   document.getElementById('title-display-container').style.display = 'block';
   document.getElementById('id-group-container').style.display = 'none';
 
-  // ★★★ 新しいrenderComments関数を呼び出す形になっている ★★★
   renderComments(comments); 
-  
+
   fetchedComments = comments;
   setLoading(false); 
 
-  // ★★★ ここで検索ボックスとコントロールバーを表示する ★★★
   document.getElementById('search-container').style.display = 'block';
   controlsDiv.style.display = 'flex';
 }
