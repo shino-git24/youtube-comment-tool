@@ -2,7 +2,7 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 // ★★★ モデル名をご自身が選んだものに変更してください ★★★
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
 // ★★★ sleep関数は不要なので削除 ★★★
 
