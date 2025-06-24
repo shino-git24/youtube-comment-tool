@@ -120,7 +120,7 @@
     }
     .comment {
       display: flex;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1rem; /* ← ここを1.5remから1remに変更 */
       padding: 1rem;
       background-color: var(--secondary-color);
       border-radius: 8px;
@@ -181,9 +181,13 @@
     </div>
 
     <div class="id-group-container">
-      <label for="videoId">ID:</label>
-      <input type="text" id="videoId" placeholder="自動で入力されます">
-    </div>
+  <label for="videoId">ID:</label>
+  <input type="text" id="videoId" placeholder="自動で入力されます">
+</div>
+
+<div id="title-display-container" style="display: none; margin-bottom: 1rem;">
+    <p style="font-weight: bold; color: var(--primary-color); margin: 0; padding: 0.8rem; background-color: var(--secondary-color); border-radius: 8px;" id="videoTitle"></p>
+</div>
     
     <div class="form-group">
       <select id="order">
@@ -257,52 +261,53 @@ const response = await fetch(apiUrl);
 
 
 // コメント取得成功時の処理
-  function onCommentsFetched(comments) {
-    if (comments.length === 0) {
-      showError("コメントが見つかりませんでした。");
-      setLoading(false);
-      return;
-    }
-
-    // コメントを描画
-    comments.forEach(c => {
-      const commentDiv = document.createElement('div');
-      commentDiv.className = 'comment';
-      commentDiv.id = `comment-${c.id}`;
-      commentDiv.innerHTML = `
-        <div class="comment-icon">
-          <img src="${c.authorProfileImageUrl}" alt="${c.author}">
-        </div>
-        <div class="comment-body">
-          <div class="comment-author">
-            ${c.author}
-            <span class="comment-meta">${c.publishedAt} 👍 ${c.likeCount}</span>
-          </div>
-          <div class="comment-text">${escapeHtml(c.text)}</div>
-        </div>
-      `;
-      commentsContainer.appendChild(commentDiv);
-    });
-
-    fetchedComments = comments; // 取得したコメントをグローバル変数に保存
-    setLoading(false); // ローディング表示を終了
-
-// ★★★ onCommentsFetched関数内の翻訳ボタン表示ロジックをコメントアウト ★★★
-/*
-const needsTranslation = comments.some(c => !isJapanese(c.text));
-
-const translateBtn = document.getElementById('translate-all-btn');
-if (needsTranslation) {
-  translateBtn.style.display = 'inline-block';
-  translateBtn.disabled = false;
-  translateBtn.textContent = '全件翻訳';
-} else {
-  translateBtn.style.display = 'none';
-}
-*/
-
-    controlsDiv.style.display = 'flex';
+function onCommentsFetched(data) {
+  // dataがオブジェクトでない、またはcommentsプロパティがない場合はエラー処理
+  if (typeof data !== 'object' || !data.comments) {
+    showError("受信データ形式が正しくありません。");
+    setLoading(false);
+    return;
   }
+
+  const comments = data.comments;
+  const videoTitle = data.videoTitle;
+
+  if (comments.length === 0) {
+    showError("コメントが見つかりませんでした。");
+    setLoading(false);
+    return;
+  }
+  
+  // ★★★ タイトルを表示し、ID入力欄を非表示にする処理 ★★★
+  document.getElementById('videoTitle').textContent = videoTitle;
+  document.getElementById('title-display-container').style.display = 'block';
+  document.getElementById('id-group-container').style.display = 'none';
+
+  // コメントを描画
+  comments.forEach(c => {
+    const commentDiv = document.createElement('div');
+    commentDiv.className = 'comment';
+    commentDiv.id = `comment-${c.id}`;
+    commentDiv.innerHTML = `
+      <div class="comment-icon">
+        <img src="${c.authorProfileImageUrl}" alt="${c.author}">
+      </div>
+      <div class="comment-body">
+        <div class="comment-author">
+          ${c.author}
+          <span class="comment-meta">${c.publishedAt} 👍 ${c.likeCount}</span>
+        </div>
+        <div class="comment-text">${escapeHtml(c.text)}</div>
+      </div>
+    `;
+    commentsContainer.appendChild(commentDiv);
+  });
+
+  fetchedComments = comments;
+  setLoading(false); 
+
+  controlsDiv.style.display = 'flex';
+}
 
   // 翻訳取得成功時の処理
   function onTranslationsFetched(translatedObjects) {
