@@ -1,9 +1,7 @@
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
-
 exports.handler = async (event) => {
+  // ダミー関数が呼ばれたことをログに出力
+  console.log("--- DUMMY translate.js function handler started ---");
+
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
@@ -15,56 +13,25 @@ exports.handler = async (event) => {
       return { statusCode: 200, body: JSON.stringify([]) };
     }
 
-    const allTranslatedTexts = [];
-    const CHUNK_SIZE = 20; // AIに一度に渡すかたまりのサイズ
-
-    // ★★★ サーバー内部で、受け取った全コメントをチャンクに分けて処理 ★★★
-    for (let i = 0; i < commentsToTranslate.length; i += CHUNK_SIZE) {
-      const chunk = commentsToTranslate.slice(i, i + CHUNK_SIZE);
-
-      const prompt = `以下のJSON配列に含まれる各オブジェクトの'text'の値を、必ず自然な日本語に翻訳してください。応答は、元の'id'と翻訳後の'text'を含むJSON配列の文字列だけにしてください。他の説明文やコードブロックのマーカー(\`\`\`)は一切含めないでください。\n\n入力JSON:\n${JSON.stringify(chunk)}\n\n出力JSON:\n`;
-
-      const payload = {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          response_mime_type: "application/json",
-          temperature: 0.2,
-        }
+    // ★★★ AIに通信せず、ダミーの翻訳結果を生成 ★★★
+    const dummyTranslatedTexts = commentsToTranslate.map(comment => {
+      return {
+        id: comment.id,
+        text: `【ダミー翻訳】${comment.text.substring(0, 20)}...`
       };
+    });
 
-      const response = await fetch(GEMINI_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-          console.error("Gemini API Error (chunk " + i + "):", await response.text());
-          throw new Error(`AI翻訳でエラーが発生しました (HTTP Status: ${response.status})`);
-      }
-
-      const responseData = await response.json();
-
-      if (responseData.candidates && responseData.candidates[0].content.parts[0].text) {
-        const jsonString = responseData.candidates[0].content.parts[0].text;
-        const translatedObjects = JSON.parse(jsonString);
-        allTranslatedTexts.push(...translatedObjects);
-      } else {
-        throw new Error("AI翻訳に失敗しました。APIからの応答形式が正しくありません。");
-      }
-    }
-
-    // 全てのチャンクの処理が終わったら、まとめて返す
+    // ダミーデータを返す
     return {
       statusCode: 200,
-      body: JSON.stringify(allTranslatedTexts)
+      body: JSON.stringify(dummyTranslatedTexts)
     };
 
   } catch (error) {
-    console.error('Translation Error:', error.message);
+    console.error('DUMMY function Error:', error.message);
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: '翻訳処理中にサーバーでエラーが発生しました。' + error.message }),
+      body: JSON.stringify({ message: 'ダミー関数でエラーが発生しました。' }),
     };
   }
 };
