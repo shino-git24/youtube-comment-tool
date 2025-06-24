@@ -12,22 +12,26 @@ exports.handler = async (event) => {
   }
 
   try {
-    // --- 動画タイトル取得処理 (ここは変更なし) ---
-    const VIDEO_API_URL = 'https://www.googleapis.com/youtube/v3/videos?part=snippet&id=' + videoId + '&key=' + API_KEY;
+    // ★★★ partに"statistics"を追加 ★★★
+    const VIDEO_API_URL = 'https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=' + videoId + '&key=' + API_KEY;
     const videoResponse = await fetch(VIDEO_API_URL);
     const videoData = await videoResponse.json();
+
     if (!videoResponse.ok) {
       const errorMessage = videoData.error?.message || '動画情報の取得に失敗しました。';
       return { statusCode: videoResponse.status, body: JSON.stringify({ message: errorMessage }) };
     }
-    const videoTitle = videoData.items?.[0]?.snippet?.title || '動画タイトル不明';
 
-    // --- コメント全件取得処理 (ページネーション対応) ---
+    const videoItem = videoData.items?.[0];
+    const videoTitle = videoItem?.snippet?.title || '動画タイトル不明';
+    // ★★★ 統計情報から総コメント数を取得 ★★★
+    const totalCommentCount = videoItem?.statistics?.commentCount || 0;
+
+    // --- コメント全件取得処理 (変更なし) ---
     let allComments = [];
     let nextPageToken = '';
 
     do {
-      // 2回目以降のリクエストではnextPageTokenを含める
       const pageTokenQuery = nextPageToken ? '&pageToken=' + nextPageToken : '';
       const COMMENTS_API_URL = 'https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=' + videoId + '&order=' + order + '&maxResults=100' + pageTokenQuery + '&key=' + API_KEY;
 
@@ -35,9 +39,7 @@ exports.handler = async (event) => {
       const commentsData = await commentsResponse.json();
 
       if (!commentsResponse.ok) {
-        const errorMessage = commentsData.error?.message || 'コメントの取得に失敗しました。';
-        // 既に取得済みのコメントとタイトルを返すこともできるが、今回はエラーとして処理
-        throw new Error(errorMessage);
+        throw new Error(commentsData.error?.message || 'コメントの取得に失敗しました。');
       }
 
       const mappedComments = commentsData.items.map(item => {
@@ -53,14 +55,15 @@ exports.handler = async (event) => {
       });
 
       allComments = allComments.concat(mappedComments);
-
-      // 次のページがあるか確認
       nextPageToken = commentsData.nextPageToken;
 
-    } while (nextPageToken); // nextPageTokenがある限りループ
+    } while (nextPageToken);
 
+    // ★★★ フロントに返すデータに totalCommentCount と fetchedCommentCount を追加 ★★★
     const responseData = {
       videoTitle: videoTitle,
+      totalCommentCount: totalCommentCount,       // APIが報告する総コメント数
+      fetchedCommentCount: allComments.length,  // 実際に取得できたコメント数
       comments: allComments
     };
 
