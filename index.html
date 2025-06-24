@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    /* スマートフォン向けシンプルUIのスタイル */
+    :root {
+      --bg-color: #1a1a1a;
+      --text-color: #e0e0e0;
+      --primary-color: #4a90e2;
+      --secondary-color: #2a2a2a;
+      --border-color: #444;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.5rem;
+      text-align: center;
+      color: var(--primary-color);
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    input[type="text"], select, textarea {
+      width: 100%;
+      padding: 0.8rem;
+      box-sizing: border-box;
+      background-color: var(--secondary-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 1rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button:disabled {
+      background-color: #555;
+      cursor: not-allowed;
+    }
+    #controls {
+      display: none; /* 最初は非表示 */
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      padding: 0.5rem 1rem;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      backdrop-filter: blur(5px);
+    }
+
+    .url-group-container {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+    #clear-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      font-size: 1.2rem;
+      font-weight: bold;
+      background-color: var(--secondary-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      border-radius: 50%;
+      cursor: pointer;
+      line-height: 28px;
+      text-align: center;
+      transition: background-color 0.2s;
+    }
+    #clear-btn:hover {
+      background-color: #555;
+    }
+    .id-group-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+    .id-group-container label {
+      font-weight: bold;
+      flex-shrink: 0; /* "ID:"が改行されないようにする */
+    }
+    .id-group-container input {
+      flex-grow: 1; /* 入力欄が残りの幅を埋めるようにする */
+      width: auto;
+    }
+
+    #comments-container {
+      margin-top: 1.5rem;
+      padding-bottom: 6rem; /* コントロールバーの分だけ余白 */
+    }
+    .comment {
+      display: flex;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background-color: var(--secondary-color);
+      border-radius: 8px;
+      border-left: 3px solid var(--primary-color);
+    }
+    .comment-icon img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin-right: 1rem;
+    }
+    .comment-body {
+      flex: 1;
+    }
+    .comment-author {
+      font-weight: bold;
+      color: #9ec9ff;
+    }
+    .comment-text {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      margin-top: 0.5rem;
+    }
+    .comment-meta {
+      font-size: 0.8em;
+      color: #999;
+      margin-left: 0.8rem;
+      font-weight: normal;
+    }
+    .comment-translation {
+      margin-top: 0.8rem;
+      padding-top: 0.8rem;
+      border-top: 1px dashed var(--border-color);
+      color: #f8b4b4;
+    }
+    /*.comment-translation::before {
+      content: '【AI日本語訳】';
+      font-weight: bold;
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 0.8em;
+    }
+    */
+    #loading, #error {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>YouTube Comment Viewer</h1>
+
+    <div class="url-group-container">
+      <textarea id="videoUrl" rows="2" placeholder="ここにYouTubeのURLを貼り付けると、下の欄にビデオIDが自動で入力されます。"></textarea>
+      <button id="clear-btn" title="クリア">×</button>
+    </div>
+
+    <div class="id-group-container">
+      <label for="videoId">ID:</label>
+      <input type="text" id="videoId" placeholder="自動で入力されます">
+    </div>
+    
+    <div class="form-group">
+      <select id="order">
+        <option value="time">最新順</option>
+        <option value="relevance">人気順</option>
+      </select>
+    </div>
+    
+    <button id="fetch-btn" onclick="fetchComments()">コメントを取得</button>
+    
+    <div id="loading" style="display: none;">コメントを取得中...</div>
+    <div id="error" style="display: none;"></div>
+    
+    <div id="comments-container"></div>
+  </div>
+
+  <div id="controls" style="display: none;">
+    <button id="translate-all-btn" style="display: none;">全件翻訳</button>
+    <button id="scroll-toggle-btn">自動スクロール開始</button>
+    <label>速度: <input type="range" id="scroll-speed" min="1" max="10" value="3"></label>
+  </div>
+
+<script>
+  const fetchBtn = document.getElementById('fetch-btn');
+  const loadingDiv = document.getElementById('loading');
+  const errorDiv = document.getElementById('error');
+  const commentsContainer = document.getElementById('comments-container');
+  const controlsDiv = document.getElementById('controls');
+  const scrollToggleBtn = document.getElementById('scroll-toggle-btn');
+  const scrollSpeedInput = document.getElementById('scroll-speed');
+  const clearBtn = document.getElementById('clear-btn');
+
+  let scrollInterval = null;
+  let fetchedComments = []; // 取得したコメントを保存する配列
+
+// コメント取得処理 (Netlify Functionを呼び出すように変更)
+async function fetchComments() {
+  const videoId = document.getElementById('videoId').value.trim();
+  const order = document.getElementById('order').value;
+
+  if (!videoId) {
+    showError("ビデオIDを入力してください。");
+    return;
+  }
+
+  setLoading(true);
+  commentsContainer.innerHTML = '';
+  controlsDiv.style.display = 'none';
+  stopAutoScroll();
+
+  try {
+    // Netlify Functionのエンドポイントを呼び出す
+const apiUrl = `/.netlify/functions/youtube?videoId=${videoId}&order=${order}`;
+console.log('Requesting URL:', apiUrl);
+const response = await fetch(apiUrl);
+
+    // エラーレスポンスのハンドリング
+    if (!response.ok) {
+      const errorData = await response.json();
+      // バックエンド(youtube.js)から返されたエラーメッセージを表示
+      throw new Error(errorData.message || 'コメントの取得に失敗しました。');
+    }
+
+    const comments = await response.json();
+    onCommentsFetched(comments); // 既存の成功ハンドラをそのまま呼び出す
+
+  } catch (error) {
+    onFetchFailed(error); // 既存の失敗ハンドラを呼び出す
+  }
+}
+
+
+// コメント取得成功時の処理
+  function onCommentsFetched(comments) {
+    if (comments.length === 0) {
+      showError("コメントが見つかりませんでした。");
+      setLoading(false);
+      return;
+    }
+
+    // コメントを描画
+    comments.forEach(c => {
+      const commentDiv = document.createElement('div');
+      commentDiv.className = 'comment';
+      commentDiv.id = `comment-${c.id}`;
+      commentDiv.innerHTML = `
+        <div class="comment-icon">
+          <img src="${c.authorProfileImageUrl}" alt="${c.author}">
+        </div>
+        <div class="comment-body">
+          <div class="comment-author">
+            ${c.author}
+            <span class="comment-meta">${c.publishedAt} 👍 ${c.likeCount}</span>
+          </div>
+          <div class="comment-text">${escapeHtml(c.text)}</div>
+        </div>
+      `;
+      commentsContainer.appendChild(commentDiv);
+    });
+
+    fetchedComments = comments; // 取得したコメントをグローバル変数に保存
+    setLoading(false); // ローディング表示を終了
+
+// ★★★ onCommentsFetched関数内の翻訳ボタン表示ロジックをコメントアウト ★★★
+/*
+const needsTranslation = comments.some(c => !isJapanese(c.text));
+
+const translateBtn = document.getElementById('translate-all-btn');
+if (needsTranslation) {
+  translateBtn.style.display = 'inline-block';
+  translateBtn.disabled = false;
+  translateBtn.textContent = '全件翻訳';
+} else {
+  translateBtn.style.display = 'none';
+}
+*/
+
+    controlsDiv.style.display = 'flex';
+  }
+
+  // 翻訳取得成功時の処理
+  function onTranslationsFetched(translatedObjects) {
+    translatedObjects.forEach(item => {
+      // 翻訳結果に対応するコメントのDIV要素を探す
+      const commentDiv = document.getElementById(`comment-${item.id}`);
+      if (commentDiv && item.text) {
+        const body = commentDiv.querySelector('.comment-body');
+        // 既に翻訳文が追加されていないか確認
+        if (!body.querySelector('.comment-translation')) {
+          const translationDiv = document.createElement('div');
+          translationDiv.className = 'comment-translation';
+          translationDiv.innerText = item.text;
+          body.appendChild(translationDiv);
+        }
+      }
+    });
+    // ★★★ 翻訳完了後にボタンを非表示にする処理をここから削除しました ★★★
+  }
+
+
+// 失敗時の処理 (fetch APIのエラーオブジェクトを受け取れるように修正)
+function onFetchFailed(error) {
+  showError(error.message);
+  setLoading(false);
+
+  // 翻訳ボタンが処理中だった場合、状態を元に戻す（この機能は後で再実装）
+  const translateBtn = document.getElementById('translate-all-btn');
+  if (translateBtn) {
+    translateBtn.disabled = false;
+    translateBtn.textContent = '全件翻訳';
+  }
+}
+
+  // 自動スクロールの制御
+  scrollToggleBtn.addEventListener('click', () => {
+    if (scrollInterval) {
+      stopAutoScroll();
+    } else {
+      startAutoScroll();
+    }
+  });
+
+  function startAutoScroll() {
+    scrollToggleBtn.textContent = '停止';
+    const speed = scrollSpeedInput.value;
+    scrollInterval = setInterval(() => {
+      window.scrollBy(0, 1);
+      // ページの最下部に到達したら停止
+      if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
+        stopAutoScroll();
+      }
+    }, 100 / speed);
+  }
+  
+  function stopAutoScroll() {
+    clearInterval(scrollInterval);
+    scrollInterval = null;
+    scrollToggleBtn.textContent = '自動スクロール開始';
+  }
+
+  // ユーティリティ関数
+  function setLoading(isLoading, message = "コメントを取得中...") {
+    fetchBtn.disabled = isLoading;
+    loadingDiv.textContent = message;
+    loadingDiv.style.display = isLoading ? 'block' : 'none';
+    if (isLoading) errorDiv.style.display = 'none';
+  }
+
+  function showError(message) {
+    errorDiv.textContent = 'エラー: ' + message;
+    errorDiv.style.display = 'block';
+  }
+  
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // 簡単な日本語判定
+  function isJapanese(text) {
+    return /[\u3000-\u303F\u3040-\u309F\u30A0-\u30FF\uFF00-\uFFEF\u4E00-\u9FAF\u3400-\u4DBF]/.test(text);
+  }
+
+  // URL入力欄の要素を取得
+  const videoUrlInput = document.getElementById('videoUrl');
+  const videoIdInput = document.getElementById('videoId');
+
+  // URLが入力されたらIDを抽出するイベントリスナー
+  videoUrlInput.addEventListener('input', (event) => {
+    const url = event.target.value;
+    if (url) {
+      const extractedId = extractYouTubeId(url);
+      if (extractedId) {
+        videoIdInput.value = extractedId;
+      }
+    }
+  });
+
+  /**
+   * 様々な形式のYouTube URLからビデオIDを抽出する関数
+   * @param {string} url - YouTubeのURL
+   * @returns {string|null} - 抽出したビデオID、または見つからない場合はnull
+   */
+  function extractYouTubeId(url) {
+    // 標準、短縮、埋め込みなど、様々なURL形式に対応する正規表現
+    const regex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  }
+
+// クリアボタンのイベントリスナー
+  clearBtn.addEventListener('click', () => {
+    videoUrlInput.value = '';
+    videoIdInput.value = '';
+  });
+
+ // 失敗時の処理
+  function onFetchFailed(error) {
+    showError(error.message);
+    setLoading(false);
+
+    // 翻訳ボタンが処理中だった場合、状態を元に戻す
+    const translateBtn = document.getElementById('translate-all-btn');
+    if (translateBtn) {
+      translateBtn.disabled = false;
+      translateBtn.textContent = '全件翻訳';
+    }
+  } 
+
+// ★★★ 「全件翻訳」ボタンのイベントリスナー全体をコメントアウト ★★★
+/*
+document.getElementById('translate-all-btn').addEventListener('click', () => {
+  const btn = document.getElementById('translate-all-btn');
+  btn.disabled = true;
+
+  const commentsToTranslate = fetchedComments
+    .filter(c => !isJapanese(c.text))
+    .map(c => ({ id: c.id, text: c.text }));
+
+  if (commentsToTranslate.length === 0) {
+    btn.style.display = 'none';
+    return;
+  }
+
+  const CHUNK_SIZE = 50; 
+  let currentChunkIndex = 0;
+
+  function translateNextChunk() {
+    const start = currentChunkIndex * CHUNK_SIZE;
+    const end = start + CHUNK_SIZE;
+    const chunk = commentsToTranslate.slice(start, end);
+
+    if (chunk.length > 0) {
+      btn.textContent = `翻訳中... (${start + chunk.length} / ${commentsToTranslate.length})`;
+
+      google.script.run
+        .withSuccessHandler(response => {
+          onTranslationsFetched(response);
+          currentChunkIndex++;
+          translateNextChunk();
+        })
+        .withFailureHandler(onFetchFailed)
+        .translateTextsWithGemini(chunk);
+    } else {
+      btn.textContent = '翻訳完了';
+      btn.style.display = 'none';
+    }
+  }
+
+  translateNextChunk();
+});
+*/
+</script>
+</body>
+</html>

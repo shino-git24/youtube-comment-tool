@@ -1,0 +1,7 @@
+[build]
+  command = "# ビルドコマンドは不要なため空"
+  publish = "." # プロジェクトのルートディレクトリを公開対象にする
+
+[functions]
+  directory = "netlify/functions/" # Functionsのコードが格納されているディレクトリ
+  node_bundler = "esbuild"
