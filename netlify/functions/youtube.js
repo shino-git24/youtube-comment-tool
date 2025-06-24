@@ -12,7 +12,6 @@ exports.handler = async (event) => {
   }
 
   try {
-    // ★★★ partに"statistics"を追加 ★★★
     const VIDEO_API_URL = 'https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=' + videoId + '&key=' + API_KEY;
     const videoResponse = await fetch(VIDEO_API_URL);
     const videoData = await videoResponse.json();
@@ -24,16 +23,15 @@ exports.handler = async (event) => {
 
     const videoItem = videoData.items?.[0];
     const videoTitle = videoItem?.snippet?.title || '動画タイトル不明';
-    // ★★★ 統計情報から総コメント数を取得 ★★★
-    const totalCommentCount = videoItem?.statistics?.commentCount || 0;
 
-    // --- コメント全件取得処理 (変更なし) ---
     let allComments = [];
+    let fetchedCommentCount = 0; // 返信も含めた総数をカウントする変数
     let nextPageToken = '';
 
     do {
       const pageTokenQuery = nextPageToken ? '&pageToken=' + nextPageToken : '';
-      const COMMENTS_API_URL = 'https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=' + videoId + '&order=' + order + '&maxResults=100' + pageTokenQuery + '&key=' + API_KEY;
+      // ★★★ partに"replies"を追加 ★★★
+      const COMMENTS_API_URL = 'https://www.googleapis.com/youtube/v3/commentThreads?part=snippet,replies&videoId=' + videoId + '&order=' + order + '&maxResults=100' + pageTokenQuery + '&key=' + API_KEY;
 
       const commentsResponse = await fetch(COMMENTS_API_URL);
       const commentsData = await commentsResponse.json();
@@ -43,14 +41,33 @@ exports.handler = async (event) => {
       }
 
       const mappedComments = commentsData.items.map(item => {
-        const comment = item.snippet.topLevelComment.snippet;
+        const topLevelComment = item.snippet.topLevelComment;
+        fetchedCommentCount++; // 親コメントをカウント
+
+        // ★★★ 返信コメントの処理を追加 ★★★
+        let replies = [];
+        if (item.replies) {
+          replies = item.replies.comments.map(reply => {
+            fetchedCommentCount++; // 返信コメントをカウント
+            return {
+              id: reply.id,
+              author: reply.snippet.authorDisplayName,
+              authorProfileImageUrl: reply.snippet.authorProfileImageUrl,
+              publishedAt: new Date(reply.snippet.publishedAt).toLocaleString('ja-JP'),
+              text: reply.snippet.textDisplay,
+              likeCount: reply.snippet.likeCount,
+            };
+          });
+        }
+
         return {
-          id: item.snippet.topLevelComment.id,
-          author: comment.authorDisplayName,
-          authorProfileImageUrl: comment.authorProfileImageUrl,
-          publishedAt: new Date(comment.publishedAt).toLocaleString('ja-JP'),
-          text: comment.textDisplay,
-          likeCount: comment.likeCount,
+          id: topLevelComment.id,
+          author: topLevelComment.snippet.authorDisplayName,
+          authorProfileImageUrl: topLevelComment.snippet.authorProfileImageUrl,
+          publishedAt: new Date(topLevelComment.snippet.publishedAt).toLocaleString('ja-JP'),
+          text: topLevelComment.snippet.textDisplay,
+          likeCount: topLevelComment.snippet.likeCount,
+          replies: replies // 返信の配列を持たせる
         };
       });
 
@@ -59,11 +76,11 @@ exports.handler = async (event) => {
 
     } while (nextPageToken);
 
-const responseData = {
-  videoTitle: videoTitle,
-  fetchedCommentCount: allComments.length,  // 実際に取得できたコメント数
-  comments: allComments
-};
+    const responseData = {
+      videoTitle: videoTitle,
+      fetchedCommentCount: fetchedCommentCount,
+      comments: allComments
+    };
 
     return {
       statusCode: 200,
