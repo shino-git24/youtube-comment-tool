@@ -59,13 +59,11 @@ exports.handler = async (event) => {
 
     } while (nextPageToken);
 
-    // ★★★ フロントに返すデータに totalCommentCount と fetchedCommentCount を追加 ★★★
-    const responseData = {
-      videoTitle: videoTitle,
-      totalCommentCount: totalCommentCount,       // APIが報告する総コメント数
-      fetchedCommentCount: allComments.length,  // 実際に取得できたコメント数
-      comments: allComments
-    };
+const responseData = {
+  videoTitle: videoTitle,
+  fetchedCommentCount: allComments.length,  // 実際に取得できたコメント数
+  comments: allComments
+};
 
     return {
       statusCode: 200,
