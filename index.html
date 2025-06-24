@@ -300,7 +300,6 @@ function renderComments(commentsToRender) {
   
 // コメント取得成功時の処理
 function onCommentsFetched(data) {
-  // dataがオブジェクトでない、またはcommentsプロパティがない場合はエラー処理
   if (typeof data !== 'object' || !data.comments) {
     showError("受信データ形式が正しくありません。");
     setLoading(false);
@@ -316,37 +315,20 @@ function onCommentsFetched(data) {
     return;
   }
   
-  // ★★★ タイトルを表示し、ID入力欄を非表示にする処理 ★★★
   document.getElementById('videoTitle').textContent = videoTitle;
   document.getElementById('title-display-container').style.display = 'block';
   document.getElementById('id-group-container').style.display = 'none';
 
-  // コメントを描画
-  comments.forEach(c => {
-    const commentDiv = document.createElement('div');
-    commentDiv.className = 'comment';
-    commentDiv.id = `comment-${c.id}`;
-    commentDiv.innerHTML = `
-      <div class="comment-icon">
-        <img src="${c.authorProfileImageUrl}" alt="${c.author}">
-      </div>
-      <div class="comment-body">
-        <div class="comment-author">
-          ${c.author}
-          <span class="comment-meta">${c.publishedAt} 👍 ${c.likeCount}</span>
-        </div>
-        <div class="comment-text">${c.text}</div>
-      </div>
-    `;
-    commentsContainer.appendChild(commentDiv);
-  });
-
+  // ★★★ 新しいrenderComments関数を呼び出す形になっている ★★★
+  renderComments(comments); 
+  
   fetchedComments = comments;
   setLoading(false); 
 
+  // ★★★ ここで検索ボックスとコントロールバーを表示する ★★★
+  document.getElementById('search-container').style.display = 'block';
   controlsDiv.style.display = 'flex';
 }
-
   // 翻訳取得成功時の処理
   function onTranslationsFetched(translatedObjects) {
     translatedObjects.forEach(item => {
