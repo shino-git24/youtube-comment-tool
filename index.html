@@ -336,7 +336,7 @@ function onCommentsFetched(data) {
     return;
   }
 
-  const { comments, videoTitle, totalCommentCount, fetchedCommentCount } = data;
+  const { comments, videoTitle, fetchedCommentCount } = data;
 
   if (comments.length === 0) {
     showError("コメントが見つかりませんでした。");
@@ -346,7 +346,6 @@ function onCommentsFetched(data) {
 
   document.getElementById('videoTitle').textContent = videoTitle;
   document.getElementById('comment-count-display').textContent = `取得コメント数: ${fetchedCommentCount}`;
-  
   document.getElementById('title-display-container').style.display = 'block';
   document.getElementById('id-group-container').style.display = 'none';
 
@@ -357,6 +356,26 @@ function onCommentsFetched(data) {
 
   document.getElementById('search-container').style.display = 'block';
   controlsDiv.style.display = 'flex';
+
+  // ★★★ この部分のロジックを復活・修正 ★★★
+  const allCommentsForCheck = [];
+  const collect = (cmts) => {
+    cmts.forEach(c => {
+      allCommentsForCheck.push(c);
+      if (c.replies) collect(c.replies);
+    });
+  };
+  collect(fetchedComments);
+
+  const needsTranslation = allCommentsForCheck.some(c => !isJapanese(c.text));
+  const translateBtn = document.getElementById('translate-all-btn');
+  if (needsTranslation) {
+    translateBtn.style.display = 'inline-block';
+    translateBtn.disabled = false;
+    translateBtn.textContent = '全件翻訳';
+  } else {
+    translateBtn.style.display = 'none';
+  }
 }
   // 翻訳取得成功時の処理
   function onTranslationsFetched(translatedObjects) {
@@ -566,6 +585,70 @@ document.getElementById('search-box').addEventListener('input', (event) => {
 
   renderComments(filteredComments);
 });  
+
+// === 「全件翻訳」ボタンのイベントリスナー（ツリー対応版） ===
+document.getElementById('translate-all-btn').addEventListener('click', () => {
+  const btn = document.getElementById('translate-all-btn');
+  btn.disabled = true;
+
+  // ★★★ 入れ子構造から翻訳対象を再帰的に収集する ★★★
+  const commentsToTranslate = [];
+  const collectForTranslation = (comments) => {
+    comments.forEach(c => {
+      // 日本語でなく、かつ、まだ翻訳文がないコメントを対象
+      if (!isJapanese(c.text) && !document.querySelector(`#comment-${c.id} .comment-translation`)) {
+        commentsToTranslate.push({ id: c.id, text: c.text });
+      }
+      if (c.replies && c.replies.length > 0) {
+        collectForTranslation(c.replies);
+      }
+    });
+  };
+  collectForTranslation(fetchedComments);
+
+  if (commentsToTranslate.length === 0) {
+    btn.textContent = '翻訳不要';
+    setTimeout(() => { btn.style.display = 'none'; }, 2000);
+    return;
+  }
+
+  const CHUNK_SIZE = 20;
+  let currentChunkIndex = 0;
+
+  async function translateNextChunk() {
+    const start = currentChunkIndex * CHUNK_SIZE;
+    const end = start + CHUNK_SIZE;
+    const chunk = commentsToTranslate.slice(start, end);
+
+    if (chunk.length > 0) {
+      btn.textContent = `翻訳中... (${start + chunk.length} / ${commentsToTranslate.length})`;
+
+      try {
+        const response = await fetch('/.netlify/functions/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(chunk)
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.message || '翻訳APIからの応答エラー');
+        }
+        const translatedObjects = await response.json();
+        onTranslationsFetched(translatedObjects);
+        currentChunkIndex++;
+        translateNextChunk();
+      } catch (error) {
+        onFetchFailed(error);
+      }
+    } else {
+      btn.textContent = '翻訳完了';
+      btn.style.display = 'none';
+    }
+  }
+
+  translateNextChunk();
+});
+  
 </script>
 </body>
 </html>
