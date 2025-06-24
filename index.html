@@ -299,7 +299,7 @@ function onCommentsFetched(data) {
           ${c.author}
           <span class="comment-meta">${c.publishedAt} 👍 ${c.likeCount}</span>
         </div>
-        <div class="comment-text">${escapeHtml(c.text)}</div>
+        <div class="comment-text">${c.text}</div>
       </div>
     `;
     commentsContainer.appendChild(commentDiv);
