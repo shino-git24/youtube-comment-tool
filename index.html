@@ -206,7 +206,11 @@
         <option value="relevance">人気順</option>
       </select>
     </div>
-    
+
+    <div class="form-group" id="search-container" style="display: none;">
+      <input type="text" id="search-box" placeholder="コメントを検索...">
+    </div>
+        
     <button id="fetch-btn" onclick="fetchComments()">コメントを取得</button>
     
     <div id="loading" style="display: none;">コメントを取得中...</div>
@@ -270,7 +274,30 @@ const response = await fetch(apiUrl);
   }
 }
 
+function renderComments(commentsToRender) {
+  commentsContainer.innerHTML = ''; // 一旦コンテナを空にする
 
+  commentsToRender.forEach(c => {
+    const commentDiv = document.createElement('div');
+    commentDiv.className = 'comment';
+    commentDiv.id = `comment-${c.id}`;
+    commentDiv.innerHTML = `
+      <div class="comment-icon">
+        <img src="${c.authorProfileImageUrl}" alt="${c.author}">
+      </div>
+      <div class="comment-body">
+        <div class="comment-author">
+          ${c.author}
+          <span class="comment-meta">${c.publishedAt} 👍 ${c.likeCount}</span>
+        </div>
+        <div class="comment-text">${c.text}</div>
+      </div>
+    `;
+    commentsContainer.appendChild(commentDiv);
+  });
+}
+
+  
 // コメント取得成功時の処理
 function onCommentsFetched(data) {
   // dataがオブジェクトでない、またはcommentsプロパティがない場合はエラー処理
@@ -493,6 +520,27 @@ document.getElementById('translate-all-btn').addEventListener('click', () => {
   translateNextChunk();
 });
 */
+
+  document.getElementById('search-box').addEventListener('input', (event) => {
+  const searchTerm = event.target.value.toLowerCase(); // 入力値を小文字に
+
+  if (!searchTerm) {
+    // 検索ワードが空なら全件表示
+    renderComments(fetchedComments);
+    return;
+  }
+
+  // 検索ワードに一致するコメントをフィルタリング
+  const filteredComments = fetchedComments.filter(comment => {
+    const authorMatch = comment.author.toLowerCase().includes(searchTerm);
+    const textMatch = comment.text.toLowerCase().includes(searchTerm);
+    return authorMatch || textMatch; // 投稿者名または本文に一致
+  });
+
+  // フィルタリングされた結果を描画
+  renderComments(filteredComments);
+});
+  
 </script>
 </body>
 </html>
