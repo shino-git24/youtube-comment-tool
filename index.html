@@ -316,9 +316,8 @@ function onCommentsFetched(data) {
   }
 
   document.getElementById('videoTitle').textContent = videoTitle;
-  // ★★★ コメント数を表示する処理を追加 ★★★
-  document.getElementById('comment-count-display').textContent = `取得件数: ${fetchedCommentCount} / 総件数: ${totalCommentCount}`;
-
+  document.getElementById('comment-count-display').textContent = `取得コメント数: ${fetchedCommentCount}`;
+  
   document.getElementById('title-display-container').style.display = 'block';
   document.getElementById('id-group-container').style.display = 'none';
 
