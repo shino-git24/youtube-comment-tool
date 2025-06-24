@@ -507,49 +507,6 @@ function onFetchFailed(error) {
     }
   } 
 
-// ★★★ 「全件翻訳」ボタンのイベントリスナー全体をコメントアウト ★★★
-/*
-document.getElementById('translate-all-btn').addEventListener('click', () => {
-  const btn = document.getElementById('translate-all-btn');
-  btn.disabled = true;
-
-  const commentsToTranslate = fetchedComments
-    .filter(c => !isJapanese(c.text))
-    .map(c => ({ id: c.id, text: c.text }));
-
-  if (commentsToTranslate.length === 0) {
-    btn.style.display = 'none';
-    return;
-  }
-
-  const CHUNK_SIZE = 50; 
-  let currentChunkIndex = 0;
-
-  function translateNextChunk() {
-    const start = currentChunkIndex * CHUNK_SIZE;
-    const end = start + CHUNK_SIZE;
-    const chunk = commentsToTranslate.slice(start, end);
-
-    if (chunk.length > 0) {
-      btn.textContent = `翻訳中... (${start + chunk.length} / ${commentsToTranslate.length})`;
-
-      google.script.run
-        .withSuccessHandler(response => {
-          onTranslationsFetched(response);
-          currentChunkIndex++;
-          translateNextChunk();
-        })
-        .withFailureHandler(onFetchFailed)
-        .translateTextsWithGemini(chunk);
-    } else {
-      btn.textContent = '翻訳完了';
-      btn.style.display = 'none';
-    }
-  }
-
-  translateNextChunk();
-});
-*/
 
 // === 修正後の検索イベントリスナー ===
 document.getElementById('search-box').addEventListener('input', (event) => {
@@ -586,16 +543,15 @@ document.getElementById('search-box').addEventListener('input', (event) => {
   renderComments(filteredComments);
 });  
 
-// === 「全件翻訳」ボタンのイベントリスナー（ツリー対応版） ===
-document.getElementById('translate-all-btn').addEventListener('click', () => {
+// === 「全件翻訳」ボタンのイベントリスナー（サーバー一括処理版） ===
+document.getElementById('translate-all-btn').addEventListener('click', async () => {
   const btn = document.getElementById('translate-all-btn');
   btn.disabled = true;
+  btn.textContent = '翻訳準備中...';
 
-  // ★★★ 入れ子構造から翻訳対象を再帰的に収集する ★★★
   const commentsToTranslate = [];
   const collectForTranslation = (comments) => {
     comments.forEach(c => {
-      // 日本語でなく、かつ、まだ翻訳文がないコメントを対象
       if (!isJapanese(c.text) && !document.querySelector(`#comment-${c.id} .comment-translation`)) {
         commentsToTranslate.push({ id: c.id, text: c.text });
       }
@@ -612,43 +568,34 @@ document.getElementById('translate-all-btn').addEventListener('click', () => {
     return;
   }
 
-  const CHUNK_SIZE = 20;
-  let currentChunkIndex = 0;
+  btn.textContent = `翻訳中... (対象: ${commentsToTranslate.length}件)`;
 
-  async function translateNextChunk() {
-    const start = currentChunkIndex * CHUNK_SIZE;
-    const end = start + CHUNK_SIZE;
-    const chunk = commentsToTranslate.slice(start, end);
+  try {
+    // ★★★ 翻訳対象の全件を、一度のリクエストでサーバーに送る ★★★
+    const response = await fetch('/.netlify/functions/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(commentsToTranslate) // 全件を一度に送信
+    });
 
-    if (chunk.length > 0) {
-      btn.textContent = `翻訳中... (${start + chunk.length} / ${commentsToTranslate.length})`;
-
-      try {
-        const response = await fetch('/.netlify/functions/translate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(chunk)
-        });
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.message || '翻訳APIからの応答エラー');
-        }
-        const translatedObjects = await response.json();
-        onTranslationsFetched(translatedObjects);
-        currentChunkIndex++;
-        translateNextChunk();
-      } catch (error) {
-        onFetchFailed(error);
-      }
-    } else {
-      btn.textContent = '翻訳完了';
-      btn.style.display = 'none';
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.message || '翻訳APIからの応答エラー');
     }
-  }
 
-  translateNextChunk();
-});
-  
+    const translatedObjects = await response.json();
+    onTranslationsFetched(translatedObjects);
+
+    btn.textContent = '翻訳完了';
+    btn.style.display = 'none';
+
+  } catch (error) {
+    onFetchFailed(error);
+    // エラー後もボタンを再度使えるように状態を戻す
+    btn.disabled = false;
+    btn.textContent = '再翻訳';
+  }
+});  
 </script>
 </body>
 </html>
