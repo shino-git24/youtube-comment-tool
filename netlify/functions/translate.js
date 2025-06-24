@@ -1,10 +1,10 @@
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+// ★★★ モデル名をご自身が選んだものに変更してください ★★★
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
-// スリープ（待機）させるための関数
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+// ★★★ sleep関数は不要なので削除 ★★★
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -19,9 +19,8 @@ exports.handler = async (event) => {
     }
 
     const allTranslatedTexts = [];
-    const CHUNK_SIZE = 20; // 一度にAPIに投げる数
+    const CHUNK_SIZE = 20;
 
-    // ★★★ 受け取った全コメントを、サーバー内部で小分けに処理 ★★★
     for (let i = 0; i < allCommentsToTranslate.length; i += CHUNK_SIZE) {
       const chunk = allCommentsToTranslate.slice(i, i + CHUNK_SIZE);
 
@@ -44,10 +43,7 @@ exports.handler = async (event) => {
 
       allTranslatedTexts.push(...translatedChunk);
 
-      // ★★★ APIのレートリミットを避けるために、少し待機する ★★★
-      if (i + CHUNK_SIZE < allCommentsToTranslate.length) {
-        await sleep(1000); // 1秒待機
-      }
+      // ★★★ sleep(1000)の呼び出しを削除 ★★★
     }
 
     return {
