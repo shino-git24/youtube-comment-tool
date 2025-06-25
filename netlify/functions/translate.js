@@ -16,7 +16,7 @@ exports.handler = async (event) => {
     }
 
     const allTranslatedTexts = [];
-    const CHUNK_SIZE = 10;
+    const CHUNK_SIZE = 5;
 
     for (let i = 0; i < commentsToTranslate.length; i += CHUNK_SIZE) {
       const chunk = commentsToTranslate.slice(i, i + CHUNK_SIZE);
