@@ -15,14 +15,29 @@ exports.handler = async (event) => {
       return { statusCode: 200, body: JSON.stringify([]) };
     }
 
-    // サーバー内部でチャンクに分けて処理するロジックは、タイムアウト対策として有効なので維持します
     const allTranslatedTexts = [];
     const CHUNK_SIZE = 20;
 
     for (let i = 0; i < commentsToTranslate.length; i += CHUNK_SIZE) {
       const chunk = commentsToTranslate.slice(i, i + CHUNK_SIZE);
 
-      const prompt = `以下のJSON配列に含まれる各オブジェクトの'text'の値を、必ず自然な日本語に翻訳してください。応答は、元の'id'と翻訳後の'text'を含むJSON配列の文字列だけにしてください。他の説明文やコードブロックのマーカー(\`\`\`)は一切含めないでください。\n\n入力JSON:\n${JSON.stringify(chunk)}\n\n出力JSON:\n`;
+      // ★★★ プロンプトの堅牢性を向上 ★★★
+      // 指示と入力データを明確に分離し、予期せぬ挙動を減らします。
+      const prompt = `あなたは優秀な翻訳アシスタントです。以下のJSON配列に含まれる各オブジェクトの'text'の値を、自然な日本語に翻訳してください。
+応答は、元の'id'と翻訳後の'text'を含むJSON配列の文字列だけにしてください。他の説明文やコードブロックのマーカー(\`\`\`)は一切含めないでください。
+
+[入力データ]
+${JSON.stringify(chunk, null, 2)}
+
+[出力JSON]
+`;
+
+      // ★★★ デバッグ用に送信内容をログ出力 ★★★
+      // エラーが発生した際に、どのデータが原因だったかNetlifyのログで確認できます。
+      console.log('--- Sending data to Gemini API ---');
+      console.log(prompt);
+      console.log('------------------------------------');
+
 
       const payload = {
         contents: [{ parts: [{ text: prompt }] }],
@@ -39,7 +54,10 @@ exports.handler = async (event) => {
         body: JSON.stringify(payload)
       });
 
+      // ★★★ APIからのエラーレスポンスを詳しくログ出力 ★★★
       if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Gemini API returned an error:', JSON.stringify(errorData, null, 2));
           throw new Error(`AI翻訳でエラーが発生しました (HTTP Status: ${response.status})`);
       }
 
@@ -50,6 +68,8 @@ exports.handler = async (event) => {
         const translatedObjects = JSON.parse(jsonString);
         allTranslatedTexts.push(...translatedObjects);
       } else {
+        // ★★★ APIからの正常な応答もログに出力して確認 ★★★
+        console.warn('Unexpected API response format:', JSON.stringify(responseData, null, 2));
         throw new Error("AI翻訳に失敗しました。APIからの応答形式が正しくありません。");
       }
     }
