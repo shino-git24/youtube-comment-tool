@@ -54,7 +54,7 @@ exports.handler = async (event) => {
               author: reply.snippet.authorDisplayName,
               authorProfileImageUrl: reply.snippet.authorProfileImageUrl,
               publishedAt: new Date(reply.snippet.publishedAt).toLocaleString('ja-JP'),
-              text: reply.snippet.textDisplay,
+              text: reply.snippet.textOriginal,
               likeCount: reply.snippet.likeCount,
             };
           });
@@ -65,7 +65,7 @@ exports.handler = async (event) => {
           author: topLevelComment.snippet.authorDisplayName,
           authorProfileImageUrl: topLevelComment.snippet.authorProfileImageUrl,
           publishedAt: new Date(topLevelComment.snippet.publishedAt).toLocaleString('ja-JP'),
-          text: topLevelComment.snippet.textDisplay,
+          text: topLevelComment.snippet.textOriginal,
           likeCount: topLevelComment.snippet.likeCount,
           replies: replies // 返信の配列を持たせる
         };
