@@ -282,9 +282,9 @@ function createCommentElement(comment) {
   const element = document.createElement('div');
   element.className = 'comment';
   element.id = `comment-${comment.id}`;
-  // publishedAtがDateオブジェクトでない場合も考慮
   const publishedDate = comment.publishedAt instanceof Date ? comment.publishedAt : new Date(comment.publishedAt);
   
+  // textDisplay を innerHTML を使って設定することで、<a>タグなどを有効化
   element.innerHTML = `
     <div class="comment-icon">
       <img src="${comment.authorProfileImageUrl}" alt="${comment.author}">
@@ -294,10 +294,10 @@ function createCommentElement(comment) {
         ${comment.author}
         <span class="comment-meta">${publishedDate.toLocaleString('ja-JP')} 👍 ${comment.likeCount}</span>
       </div>
-      <div class="comment-text">${comment.text}</div>
+      <div class="comment-text">${comment.textDisplay}</div>
     </div>
   `;
-  // 返信コンテナ用の空のdivを末尾に追加（ここに返信が入る）
+  // 返信コンテナ用の空のdivを末尾に追加
   const repliesDiv = document.createElement('div');
   element.querySelector('.comment-body').appendChild(repliesDiv);
   return element;
@@ -520,21 +520,18 @@ document.getElementById('search-box').addEventListener('input', (event) => {
   }
 
   const filteredComments = fetchedComments.map(comment => {
-    // 親コメントがマッチするかどうか
+    // ★★★ ここを textOriginal で判定するように変更 ★★★
     const parentAuthorMatch = comment.author.toLowerCase().includes(searchTerm);
-    const parentTextMatch = comment.text.toLowerCase().includes(searchTerm);
+    const parentTextMatch = comment.textOriginal.toLowerCase().includes(searchTerm);
     const isParentMatch = parentAuthorMatch || parentTextMatch;
     
-    // 返信がマッチするかどうか
     const matchedReplies = comment.replies.filter(reply => {
       const replyAuthorMatch = reply.author.toLowerCase().includes(searchTerm);
-      const replyTextMatch = reply.text.toLowerCase().includes(searchTerm);
+      const replyTextMatch = reply.textOriginal.toLowerCase().includes(searchTerm);
       return replyAuthorMatch || replyTextMatch;
     });
 
-    // 親がマッチ、またはマッチした返信がある場合
     if (isParentMatch || matchedReplies.length > 0) {
-      // 親がマッチした場合は全ての返信を、返信だけがマッチした場合はマッチした返信のみを表示
       const repliesToShow = isParentMatch ? comment.replies : matchedReplies;
       return { ...comment, replies: repliesToShow };
     }
@@ -551,14 +548,14 @@ document.getElementById('translate-all-btn').addEventListener('click', async () 
   btn.disabled = true;
   btn.textContent = '翻訳準備中...';
 
-  // 翻訳対象（未翻訳かつ日本語でない）のコメントを収集
+   // 翻訳対象（未翻訳かつ日本語でない）のコメントを収集
   const commentsToTranslate = [];
   const collectForTranslation = (comments) => {
     comments.forEach(c => {
-      // 既に翻訳文が表示されているかチェックする
       const isAlreadyTranslated = document.querySelector(`#comment-${c.id} .comment-translation`);
-      if (!isJapanese(c.text) && !isAlreadyTranslated) {
-        commentsToTranslate.push({ id: c.id, text: c.text });
+      // ★★★ ここを textOriginal で判定＆送信するように変更 ★★★
+      if (!isJapanese(c.textOriginal) && !isAlreadyTranslated) {
+        commentsToTranslate.push({ id: c.id, text: c.textOriginal }); 
       }
       if (c.replies && c.replies.length > 0) {
         collectForTranslation(c.replies);
@@ -566,7 +563,6 @@ document.getElementById('translate-all-btn').addEventListener('click', async () 
     });
   };
   collectForTranslation(fetchedComments);
-
   if (commentsToTranslate.length === 0) {
     btn.textContent = '翻訳不要';
     setTimeout(() => { btn.style.display = 'none'; }, 2000);
