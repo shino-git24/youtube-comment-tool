@@ -545,16 +545,19 @@ document.getElementById('search-box').addEventListener('input', (event) => {
   renderComments(filteredComments);
 });  
 
-// === 「全件翻訳」ボタンのイベントリスナー（サーバー一括処理版） ===
+// === 「全件翻訳」ボタンのイベントリスナー（フロントエンドでのループ処理版） ===
 document.getElementById('translate-all-btn').addEventListener('click', async () => {
   const btn = document.getElementById('translate-all-btn');
   btn.disabled = true;
   btn.textContent = '翻訳準備中...';
 
+  // 翻訳対象（未翻訳かつ日本語でない）のコメントを収集
   const commentsToTranslate = [];
   const collectForTranslation = (comments) => {
     comments.forEach(c => {
-      if (!isJapanese(c.text) && !document.querySelector(`#comment-${c.id} .comment-translation`)) {
+      // 既に翻訳文が表示されているかチェックする
+      const isAlreadyTranslated = document.querySelector(`#comment-${c.id} .comment-translation`);
+      if (!isJapanese(c.text) && !isAlreadyTranslated) {
         commentsToTranslate.push({ id: c.id, text: c.text });
       }
       if (c.replies && c.replies.length > 0) {
@@ -570,34 +573,47 @@ document.getElementById('translate-all-btn').addEventListener('click', async () 
     return;
   }
 
-  btn.textContent = `翻訳中... (対象: ${commentsToTranslate.length}件)`;
+  // 小さな塊（チャンク）に分割する
+  const CHUNK_SIZE = 5; // 一度に翻訳する数
+  const chunks = [];
+  for (let i = 0; i < commentsToTranslate.length; i += CHUNK_SIZE) {
+    chunks.push(commentsToTranslate.slice(i, i + CHUNK_SIZE));
+  }
 
   try {
-    // ★★★ 翻訳対象の全件を、一度のリクエストでサーバーに送る ★★★
-    const response = await fetch('/.netlify/functions/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(commentsToTranslate) // 全件を一度に送信
-    });
+    // チャンクごとにループして、バックエンドにリクエストを送る
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      // 進捗を表示
+      btn.textContent = `翻訳中... (${i + 1}/${chunks.length})`;
 
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.message || '翻訳APIからの応答エラー');
+      const response = await fetch('/.netlify/functions/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chunk) // 1つのチャンクだけを送信
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || '翻訳APIからの応答エラー');
+      }
+
+      const translatedObjects = await response.json();
+      // 受け取った分だけ画面に反映
+      onTranslationsFetched(translatedObjects);
     }
 
-    const translatedObjects = await response.json();
-    onTranslationsFetched(translatedObjects);
-
     btn.textContent = '翻訳完了';
-    btn.style.display = 'none';
+    btn.style.display = 'none'; // 完了したらボタンを隠す
 
   } catch (error) {
+    // onFetchFailedは汎用的なエラー表示なので、そのまま利用
     onFetchFailed(error);
     // エラー後もボタンを再度使えるように状態を戻す
     btn.disabled = false;
     btn.textContent = '再翻訳';
   }
-});  
+});
 </script>
 </body>
 </html>
